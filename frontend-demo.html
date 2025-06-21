@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Explorer - Frontend Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .api-status {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online { background: #38a169; }
+        .status-offline { background: #e53e3e; }
+        .status-loading { background: #ffa500; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .item {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: background 0.2s ease;
+        }
+
+        .item:hover {
+            background: #e9ecef;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .item-details {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .error {
+            color: #e53e3e;
+            background: #fed7d7;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .success {
+            color: #38a169;
+            background: #c6f6d5;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #38a169;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-btn {
+            background: #38a169;
+            margin-left: 10px;
+        }
+
+        .refresh-btn:hover:not(:disabled) {
+            background: #2f855a;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+            opacity: 0.9;
+        }
+
+        .mashup-indicator {
+            background: linear-gradient(45deg, #667eea, #38a169);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .responsive-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .responsive-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .responsive-grid {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 Music Explorer</h1>
+            <p>MERN Stack Frontend Demo - API Integration & Mashup</p>
+        </div>
+
+        <!-- API Status Section -->
+        <div class="api-status">
+            <h3>API Connection Status</h3>
+            <div id="apiStatus">
+                <span class="status-indicator status-loading"></span>
+                <span>Connecting to API...</span>
+            </div>
+            <button class="btn refresh-btn" onclick="refreshData()">Refresh All Data</button>
+        </div>
+
+        <!-- Error/Success Messages -->
+        <div id="messages"></div>
+
+        <!-- Main Content Grid -->
+        <div class="grid">
+            <!-- Top Tracks from Last.fm API -->
+            <div class="card">
+                <div class="mashup-indicator">Last.fm API</div>
+                <h2>🎵 Top Tracks</h2>
+                <div id="tracksContent">
+                    <div class="loading">Loading tracks...</div>
+                </div>
+            </div>
+
+            <!-- Top Artists from Last.fm API -->
+            <div class="card">
+                <div class="mashup-indicator">Last.fm API</div>
+                <h2>🎤 Top Artists</h2>
+                <div id="artistsContent">
+                    <div class="loading">Loading artists...</div>
+                </div>
+            </div>
+
+            <!-- Playlists from MongoDB -->
+            <div class="card">
+                <div class="mashup-indicator">MongoDB API</div>
+                <h2>📝 My Playlists</h2>
+                
+                <!-- Create Playlist Form -->
+                <form id="playlistForm" style="margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label>Playlist Name</label>
+                        <input type="text" id="playlistName" placeholder="Enter playlist name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="playlistDescription" placeholder="Enter description" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn" id="createBtn">Create Playlist</button>
+                </form>
+
+                <div id="playlistsContent">
+                    <div class="loading">Loading playlists...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Frontend Demo Features:</strong></p>
+            <p>✓ Visual API Response Presentation | ✓ Asynchronous Requests & Dynamic UI Updates</p>
+            <p>✓ Error Handling & State Management | ✓ Multiple API Mashup (Last.fm + MongoDB)</p>
+            <p><strong>Technologies:</strong> HTML5, CSS3, JavaScript ES6, Fetch API, Responsive Design</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://music-explorer-k1tk.onrender.com';
+        
+        // State management
+        let appState = {
+            apiConnected: false,
+            loading: false,
+            tracks: [],
+            artists: [],
+            playlists: []
+        };
+
+        // Utility functions
+        function showMessage(message, type = 'error') {
+            const messagesDiv = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = type;
+            messageEl.textContent = message;
+            messagesDiv.appendChild(messageEl);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 5000);
+        }
+
+        function updateApiStatus(connected, message = '') {
+            const statusEl = document.getElementById('apiStatus');
+            const indicator = statusEl.querySelector('.status-indicator');
+            const text = statusEl.querySelector('span:last-child');
+            
+            if (connected) {
+                indicator.className = 'status-indicator status-online';
+                text.textContent = `✓ Connected to API${message ? ' - ' + message : ''}`;
+            } else {
+                indicator.className = 'status-indicator status-offline';
+                text.textContent = `✗ API Connection Failed${message ? ' - ' + message : ''}`;
+            }
+            
+            appState.apiConnected = connected;
+        }
+
+        // API Functions with error handling
+        async function fetchWithErrorHandling(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        async function fetchApiStatus() {
+            try {
+                const data = await fetchWithErrorHandling(`${API_BASE_URL}/`);
+                updateApiStatus(true, data.status);
+                return data;
+            } catch (error) {
+                updateApiStatus(false, error.message);
+                throw error;
+            }
+        }
+
+        async function fetchTracks() {
+            try {
+                const data = await fetchWithErrorHandling(`${API_BASE_URL}/api/charts/top-tracks`);
+                appState.tracks = data.slice(0, 8); // Limit for demo
+                renderTracks();
+            } catch (error) {
+                document.getElementById('tracksContent').innerHTML = 
+                    `<div class="error">Failed to load tracks: ${error.message}</div>`;
+            }
+        }
+
+        async function fetchArtists() {
+            try {
+                const data = await fetchWithErrorHandling(`${API_BASE_URL}/api/charts/top-artists`);
+                appState.artists = data.slice(0, 8); // Limit for demo
+                renderArtists();
+            } catch (error) {
+                document.getElementById('artistsContent').innerHTML = 
+                    `<div class="error">Failed to load artists: ${error.message}</div>`;
+            }
+        }
+
+        async function fetchPlaylists() {
+            try {
+                const data = await fetchWithErrorHandling(`${API_BASE_URL}/api/playlists`);
+                appState.playlists = data;
+                renderPlaylists();
+            } catch (error) {
+                document.getElementById('playlistsContent').innerHTML = 
+                    `<div class="error">Failed to load playlists: ${error.message}</div>`;
+            }
+        }
+
+        async function createPlaylist(name, description) {
+            try {
+                const data = await fetchWithErrorHandling(`${API_BASE_URL}/api/playlists`, {
+                    method: 'POST',
+                    body: JSON.stringify({ name, description })
+                });
+                
+                appState.playlists.push(data);
+                renderPlaylists();
+                showMessage('Playlist created successfully!', 'success');
+                return data;
+            } catch (error) {
+                showMessage(`Failed to create playlist: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Rendering functions with dynamic UI updates
+        function renderTracks() {
+            const container = document.getElementById('tracksContent');
+            
+            if (appState.tracks.length === 0) {
+                container.innerHTML = '<div class="loading">No tracks available</div>';
+                return;
+            }
+            
+            container.innerHTML = appState.tracks.map(track => `
+                <div class="item">
+                    <div class="item-name">${track.name}</div>
+                    <div class="item-details">
+                        by ${track.artist?.name || 'Unknown Artist'}
+                        ${track.playcount ? ` • ${parseInt(track.playcount).toLocaleString()} plays` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderArtists() {
+            const container = document.getElementById('artistsContent');
+            
+            if (appState.artists.length === 0) {
+                container.innerHTML = '<div class="loading">No artists available</div>';
+                return;
+            }
+            
+            container.innerHTML = appState.artists.map(artist => `
+                <div class="item">
+                    <div class="item-name">${artist.name}</div>
+                    <div class="item-details">
+                        ${artist.playcount ? `${parseInt(artist.playcount).toLocaleString()} plays` : ''}
+                        ${artist.listeners ? ` • ${parseInt(artist.listeners).toLocaleString()} listeners` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderPlaylists() {
+            const container = document.getElementById('playlistsContent');
+            
+            if (appState.playlists.length === 0) {
+                container.innerHTML = '<div class="loading">No playlists yet. Create your first playlist!</div>';
+                return;
+            }
+            
+            container.innerHTML = appState.playlists.map(playlist => `
+                <div class="item">
+                    <div class="item-name">${playlist.name}</div>
+                    <div class="item-details">
+                        ${playlist.description || 'No description'}
+                        <br>
+                        ${playlist.tracks?.length || 0} tracks • 
+                        Created: ${new Date(playlist.createdAt).toLocaleDateString()}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Event handlers
+        document.getElementById('playlistForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('playlistName').value.trim();
+            const description = document.getElementById('playlistDescription').value.trim();
+            const createBtn = document.getElementById('createBtn');
+            
+            if (!name) {
+                showMessage('Playlist name is required', 'error');
+                return;
+            }
+            
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating...';
+            
+            try {
+                await createPlaylist(name, description);
+                document.getElementById('playlistForm').reset();
+            } catch (error) {
+                // Error already handled in createPlaylist
+            } finally {
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create Playlist';
+            }
+        });
+
+        // Initialize application with asynchronous loading
+        async function initializeApp() {
+            appState.loading = true;
+            
+            try {
+                // Fetch API status first
+                await fetchApiStatus();
+                
+                // Then fetch all data asynchronously
+                await Promise.allSettled([
+                    fetchTracks(),
+                    fetchArtists(),
+                    fetchPlaylists()
+                ]);
+                
+                showMessage('All data loaded successfully!', 'success');
+            } catch (error) {
+                showMessage(`Initialization failed: ${error.message}`, 'error');
+            } finally {
+                appState.loading = false;
+            }
+        }
+
+        // Refresh function
+        async function refreshData() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Refreshing...';
+            
+            // Show loading states
+            document.getElementById('tracksContent').innerHTML = '<div class="loading">Refreshing tracks...</div>';
+            document.getElementById('artistsContent').innerHTML = '<div class="loading">Refreshing artists...</div>';
+            document.getElementById('playlistsContent').innerHTML = '<div class="loading">Refreshing playlists...</div>';
+            
+            try {
+                await initializeApp();
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Refresh All Data';
+            }
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
