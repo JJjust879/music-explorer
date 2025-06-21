@@ -253,10 +253,27 @@ app.delete('/api/playlists/:id/tracks/:trackIndex', async (req, res) => {
     if (db) {
       const collection = db.collection('playlists');
       let playlist;
+      
       try {
-        playlist = await collection.findOne({ _id: playlistId });
+        const { ObjectId } = require('mongodb');
+        
+        // Always try ObjectId conversion first for 24-char hex strings
+        if (playlistId.match(/^[0-9a-fA-F]{24}$/)) {
+          playlist = await collection.findOne({ _id: new ObjectId(playlistId) });
+        }
+        
+        // Fallback to numeric id if needed
+        if (!playlist && !isNaN(playlistId)) {
+          playlist = await collection.findOne({ id: parseInt(playlistId) });
+        }
       } catch (e) {
-        playlist = await collection.findOne({ id: parseInt(playlistId) });
+        console.error('Error finding playlist:', e);
+        // Last resort - try finding by id field
+        try {
+          playlist = await collection.findOne({ id: parseInt(playlistId) });
+        } catch (e2) {
+          console.error('Final fallback failed:', e2);
+        }
       }
       
       if (!playlist) {
@@ -300,6 +317,7 @@ app.delete('/api/playlists/:id/tracks/:trackIndex', async (req, res) => {
 
 // Add track to playlist
 app.post('/api/playlists/:id/tracks', async (req, res) => {
+  console.log('POST request to add track:', req.params.id, req.body);
   try {
     const playlistId = req.params.id;
     const trackData = req.body;
@@ -314,11 +332,31 @@ app.post('/api/playlists/:id/tracks', async (req, res) => {
       const collection = db.collection('playlists');
       let playlist;
       
-      // Try to find playlist by MongoDB ObjectId first, then by numeric id
+      // MongoDB Atlas stores _id as ObjectId, need to handle this properly
+      console.log('Looking for playlist with ID:', playlistId);
+      
       try {
-        playlist = await collection.findOne({ _id: playlistId });
+        const { ObjectId } = require('mongodb');
+        
+        // Always try ObjectId conversion first for 24-char hex strings
+        if (playlistId.match(/^[0-9a-fA-F]{24}$/)) {
+          playlist = await collection.findOne({ _id: new ObjectId(playlistId) });
+          console.log('Found by ObjectId conversion:', playlist ? 'YES' : 'NO');
+        }
+        
+        // Fallback to numeric id if needed
+        if (!playlist && !isNaN(playlistId)) {
+          playlist = await collection.findOne({ id: parseInt(playlistId) });
+          console.log('Found by numeric id:', playlist ? 'YES' : 'NO');
+        }
       } catch (e) {
-        playlist = await collection.findOne({ id: parseInt(playlistId) });
+        console.error('Error finding playlist:', e);
+        // Last resort - try finding by id field
+        try {
+          playlist = await collection.findOne({ id: parseInt(playlistId) });
+        } catch (e2) {
+          console.error('Final fallback failed:', e2);
+        }
       }
       
       if (!playlist) {
