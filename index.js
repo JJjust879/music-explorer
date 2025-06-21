@@ -101,6 +101,72 @@ app.get('/api/charts/top-artists', async (req, res) => {
   }
 });
 
+// Search endpoints
+app.get('/api/search/tracks', async (req, res) => {
+  try {
+    const query = req.query.q;
+    const apiKey = process.env.LASTFM_API_KEY;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    if (!apiKey) {
+      return res.json([
+        { name: `Sample Result for "${query}"`, artist: "Sample Artist", url: "#" }
+      ]);
+    }
+
+    const response = await axios.get(`http://ws.audioscrobbler.com/2.0/?method=track.search&track=${encodeURIComponent(query)}&api_key=${apiKey}&format=json&limit=20`);
+    const tracks = response.data.results?.trackmatches?.track || [];
+    
+    const results = Array.isArray(tracks) ? tracks : [tracks];
+    
+    res.json(results.map(track => ({
+      name: track.name,
+      artist: track.artist,
+      url: track.url,
+      listeners: track.listeners,
+      image: track.image
+    })));
+  } catch (error) {
+    console.error('Track search error:', error.message);
+    res.json([]);
+  }
+});
+
+app.get('/api/search/artists', async (req, res) => {
+  try {
+    const query = req.query.q;
+    const apiKey = process.env.LASTFM_API_KEY;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    if (!apiKey) {
+      return res.json([
+        { name: `Sample Artist for "${query}"`, url: "#", listeners: "1000000" }
+      ]);
+    }
+
+    const response = await axios.get(`http://ws.audioscrobbler.com/2.0/?method=artist.search&artist=${encodeURIComponent(query)}&api_key=${apiKey}&format=json&limit=20`);
+    const artists = response.data.results?.artistmatches?.artist || [];
+    
+    const results = Array.isArray(artists) ? artists : [artists];
+    
+    res.json(results.map(artist => ({
+      name: artist.name,
+      url: artist.url,
+      listeners: artist.listeners,
+      image: artist.image
+    })));
+  } catch (error) {
+    console.error('Artist search error:', error.message);
+    res.json([]);
+  }
+});
+
 // Playlist CRUD operations
 app.get('/api/playlists', async (req, res) => {
   try {
@@ -149,17 +215,24 @@ app.post('/api/playlists', async (req, res) => {
 
 app.get('/api/playlists/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const playlistId = req.params.id;
     
     if (db) {
       const collection = db.collection('playlists');
-      const playlist = await collection.findOne({ id });
+      // Try to find by MongoDB ObjectId first, then by numeric id
+      let playlist;
+      try {
+        playlist = await collection.findOne({ _id: playlistId });
+      } catch (e) {
+        playlist = await collection.findOne({ id: parseInt(playlistId) });
+      }
+      
       if (!playlist) {
         return res.status(404).json({ error: 'Playlist not found' });
       }
       res.json(playlist);
     } else {
-      const playlist = playlists.find(p => p.id === id);
+      const playlist = playlists.find(p => p.id == playlistId);
       if (!playlist) {
         return res.status(404).json({ error: 'Playlist not found' });
       }
@@ -171,11 +244,67 @@ app.get('/api/playlists/:id', async (req, res) => {
   }
 });
 
+// Delete track from playlist
+app.delete('/api/playlists/:id/tracks/:trackIndex', async (req, res) => {
+  try {
+    const playlistId = req.params.id;
+    const trackIndex = parseInt(req.params.trackIndex);
+    
+    if (db) {
+      const collection = db.collection('playlists');
+      let playlist;
+      try {
+        playlist = await collection.findOne({ _id: playlistId });
+      } catch (e) {
+        playlist = await collection.findOne({ id: parseInt(playlistId) });
+      }
+      
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+
+      const tracks = playlist.tracks || [];
+      if (trackIndex < 0 || trackIndex >= tracks.length) {
+        return res.status(400).json({ error: 'Invalid track index' });
+      }
+
+      tracks.splice(trackIndex, 1);
+      
+      await collection.updateOne(
+        { _id: playlist._id },
+        { $set: { tracks } }
+      );
+      
+      const updatedPlaylist = await collection.findOne({ _id: playlist._id });
+      res.json(updatedPlaylist);
+    } else {
+      const playlist = playlists.find(p => p.id == playlistId);
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      
+      const tracks = playlist.tracks || [];
+      if (trackIndex < 0 || trackIndex >= tracks.length) {
+        return res.status(400).json({ error: 'Invalid track index' });
+      }
+      
+      tracks.splice(trackIndex, 1);
+      playlist.tracks = tracks;
+      res.json(playlist);
+    }
+  } catch (error) {
+    console.error('Remove track error:', error);
+    res.status(500).json({ error: 'Failed to remove track from playlist' });
+  }
+});
+
 // Add track to playlist
 app.post('/api/playlists/:id/tracks', async (req, res) => {
   try {
     const playlistId = req.params.id;
     const trackData = req.body;
+    
+    console.log('Adding track to playlist:', { playlistId, trackData });
     
     if (!trackData.name || !trackData.artist) {
       return res.status(400).json({ error: 'Track name and artist are required' });
@@ -183,11 +312,17 @@ app.post('/api/playlists/:id/tracks', async (req, res) => {
 
     if (db) {
       const collection = db.collection('playlists');
-      const playlist = await collection.findOne({ 
-        $or: [{ id: parseInt(playlistId) }, { _id: playlistId }] 
-      });
+      let playlist;
+      
+      // Try to find playlist by MongoDB ObjectId first, then by numeric id
+      try {
+        playlist = await collection.findOne({ _id: playlistId });
+      } catch (e) {
+        playlist = await collection.findOne({ id: parseInt(playlistId) });
+      }
       
       if (!playlist) {
+        console.log('Playlist not found:', playlistId);
         return res.status(404).json({ error: 'Playlist not found' });
       }
 
@@ -199,15 +334,18 @@ app.post('/api/playlists/:id/tracks', async (req, res) => {
       );
       
       const updatedPlaylist = await collection.findOne({ _id: playlist._id });
+      console.log('Track added successfully:', updatedPlaylist);
       res.json(updatedPlaylist);
     } else {
       const playlist = playlists.find(p => p.id == playlistId);
       if (!playlist) {
+        console.log('Playlist not found in memory:', playlistId);
         return res.status(404).json({ error: 'Playlist not found' });
       }
       
       playlist.tracks = playlist.tracks || [];
       playlist.tracks.push(trackData);
+      console.log('Track added to memory playlist:', playlist);
       res.json(playlist);
     }
   } catch (error) {
