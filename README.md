@@ -143,3 +143,17 @@ The built application will serve from `dist/public` with the API running on the 
 - `npm run build` - Build for production
 - `npm start` - Start production server
 
+## Assignment Requirements Met
+
+✅ **Third-party APIs**: Integrated Last.fm API for music data and Deezer API for audio previews
+✅ **Data Persistence**: MongoDB database for playlists and tracks with full CRUD operations
+✅ **RESTful API**: Complete REST API with proper HTTP methods and status codes
+✅ **Client Application**: Full-featured React web client with responsive design
+✅ **Visual Presentation**: Modern Spotify-inspired UI with charts, search, and playlists
+✅ **Asynchronous Requests**: All API calls are asynchronous with loading states
+✅ **Error Handling**: Comprehensive error handling with user feedback
+✅ **Multiple API Integration**: Mashup of Last.fm and Deezer APIs for complete music experience
+
+## License
+
+This project is for educational purposes as part of a full-stack development assignment.
