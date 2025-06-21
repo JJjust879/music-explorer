@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Explorer - MERN Stack App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #1db954;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .section {
+            background: #282828;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .section h2 {
+            color: #1db954;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            background: #1db954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background: #1ed760;
+        }
+
+        .btn-danger {
+            background: #e22134;
+        }
+
+        .btn-danger:hover {
+            background: #ff4757;
+        }
+
+        .search-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px 0 0 5px;
+            background: #404040;
+            color: white;
+        }
+
+        .search-btn {
+            border-radius: 0 5px 5px 0;
+            margin: 0;
+        }
+
+        .track-item, .playlist-item {
+            background: #404040;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #1db954;
+        }
+
+        .track-item h4, .playlist-item h4 {
+            margin-bottom: 5px;
+        }
+
+        .track-item p, .playlist-item p {
+            color: #b3b3b3;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .playlist-select {
+            padding: 8px;
+            border-radius: 3px;
+            border: none;
+            background: #404040;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #b3b3b3;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #404040;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #b3b3b3;
+        }
+
+        .success {
+            background: #1db954;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .error {
+            background: #e22134;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .playlist-tracks {
+            background: #1a1a1a;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .track-in-playlist {
+            background: #333;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Music Explorer</h1>
+            <p>MERN Stack Music Application with MongoDB</p>
+        </div>
+
+        <div id="message"></div>
+
+        <div class="main-content">
+            <!-- Music Discovery Section -->
+            <div class="section">
+                <h2>Discover Music</h2>
+                
+                <div class="search-container">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search for tracks...">
+                    <button class="btn search-btn" onclick="searchTracks()">Search</button>
+                </div>
+
+                <button class="btn" onclick="loadTopTracks()">Load Top Tracks</button>
+                
+                <div id="tracksContainer">
+                    <div class="loading">Click "Load Top Tracks" or search for music</div>
+                </div>
+            </div>
+
+            <!-- Playlist Management Section -->
+            <div class="section">
+                <h2>My Playlists</h2>
+                
+                <div class="form-group">
+                    <label for="playlistName">Create New Playlist</label>
+                    <input type="text" id="playlistName" placeholder="Playlist name">
+                </div>
+                <div class="form-group">
+                    <textarea id="playlistDesc" placeholder="Description (optional)" rows="2"></textarea>
+                </div>
+                <button class="btn" onclick="createPlaylist()">Create Playlist</button>
+
+                <div id="playlistsContainer">
+                    <div class="loading">Your playlists will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use deployed API for GitHub Pages hosting
+        const API_BASE_URL = 'https://music-explorer-k1tk.onrender.com';
+        
+        let currentTracks = [];
+        let currentPlaylists = [];
+
+        function showMessage(text, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+            setTimeout(() => messageDiv.innerHTML = '', 3000);
+        }
+
+        async function loadTopTracks() {
+            const container = document.getElementById('tracksContainer');
+            container.innerHTML = '<div class="loading">Loading top tracks...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/charts/top-tracks`);
+                const tracks = await response.json();
+                currentTracks = tracks.slice(0, 20);
+                renderTracks();
+            } catch (error) {
+                container.innerHTML = `<div class="error">Error loading tracks: ${error.message}</div>`;
+            }
+        }
+
+        async function searchTracks() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const container = document.getElementById('tracksContainer');
+            container.innerHTML = '<div class="loading">Searching...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/search/tracks?q=${encodeURIComponent(query)}`);
+                const tracks = await response.json();
+                currentTracks = tracks.slice(0, 20);
+                renderTracks();
+            } catch (error) {
+                container.innerHTML = `<div class="error">Error searching: ${error.message}</div>`;
+            }
+        }
+
+        function renderTracks() {
+            const container = document.getElementById('tracksContainer');
+            
+            if (currentTracks.length === 0) {
+                container.innerHTML = '<div class="loading">No tracks found</div>';
+                return;
+            }
+
+            container.innerHTML = currentTracks.map((track, index) => `
+                <div class="track-item">
+                    <h4>${track.name}</h4>
+                    <p>Artist: ${track.artist?.name || track.artist || 'Unknown'}</p>
+                    <p>Plays: ${parseInt(track.playcount || track.listeners || 0).toLocaleString()}</p>
+                    <div>
+                        <select class="playlist-select" id="playlist-${index}">
+                            <option value="">Select playlist...</option>
+                            ${currentPlaylists.map(p => `<option value="${p._id || p.id}">${p.name}</option>`).join('')}
+                        </select>
+                        <button class="btn" onclick="addToPlaylist(${index})">Add to Playlist</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addToPlaylist(trackIndex) {
+            const track = currentTracks[trackIndex];
+            const selectElement = document.getElementById(`playlist-${trackIndex}`);
+            const playlistId = selectElement.value;
+
+            if (!playlistId) {
+                showMessage('Please select a playlist first', 'error');
+                return;
+            }
+
+            try {
+                const trackData = {
+                    name: track.name,
+                    artist: track.artist?.name || track.artist || 'Unknown',
+                    album: track.album || '',
+                    duration: track.duration || '',
+                    lastfmUrl: track.url || ''
+                };
+
+                const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}/tracks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(trackData)
+                });
+
+                if (response.ok) {
+                    const updatedPlaylist = await response.json();
+                    
+                    const playlistIndex = currentPlaylists.findIndex(p => (p._id || p.id) == playlistId);
+                    if (playlistIndex !== -1) {
+                        currentPlaylists[playlistIndex] = updatedPlaylist;
+                        renderPlaylists();
+                    }
+
+                    selectElement.value = '';
+                    showMessage(`Added "${track.name}" to playlist!`);
+                } else {
+                    const error = await response.text();
+                    showMessage(`Failed to add track: ${error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createPlaylist() {
+            const name = document.getElementById('playlistName').value.trim();
+            const description = document.getElementById('playlistDesc').value.trim();
+
+            if (!name) {
+                showMessage('Please enter a playlist name', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/playlists`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description })
+                });
+
+                if (response.ok) {
+                    const playlist = await response.json();
+                    currentPlaylists.push(playlist);
+                    
+                    document.getElementById('playlistName').value = '';
+                    document.getElementById('playlistDesc').value = '';
+                    
+                    renderPlaylists();
+                    renderTracks();
+                    showMessage(`Playlist "${name}" created!`);
+                } else {
+                    const error = await response.text();
+                    showMessage(`Failed to create playlist: ${error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadPlaylists() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/playlists`);
+                currentPlaylists = await response.json();
+                renderPlaylists();
+            } catch (error) {
+                console.error('Error loading playlists:', error);
+            }
+        }
+
+        function renderPlaylists() {
+            const container = document.getElementById('playlistsContainer');
+            
+            if (currentPlaylists.length === 0) {
+                container.innerHTML = '<div class="loading">No playlists yet. Create your first playlist!</div>';
+                return;
+            }
+
+            container.innerHTML = currentPlaylists.map(playlist => `
+                <div class="playlist-item">
+                    <h4>${playlist.name}</h4>
+                    <p>${playlist.description || 'No description'}</p>
+                    <p>Tracks: ${playlist.tracks?.length || 0} | Created: ${new Date(playlist.createdAt).toLocaleDateString()}</p>
+                    
+                    <button class="btn" onclick="toggleTracks('${playlist._id || playlist.id}')">
+                        ${playlist.showTracks ? 'Hide' : 'View'} Tracks
+                    </button>
+                    <button class="btn btn-danger" onclick="deletePlaylist('${playlist._id || playlist.id}')">Delete</button>
+                    
+                    <div id="tracks-${playlist._id || playlist.id}" class="playlist-tracks ${playlist.showTracks ? '' : 'hidden'}">
+                        ${playlist.tracks && playlist.tracks.length > 0 ? 
+                            playlist.tracks.map((track, index) => `
+                                <div class="track-in-playlist">
+                                    <span>${track.name} - ${track.artist}</span>
+                                    <button class="btn btn-danger" onclick="removeTrack('${playlist._id || playlist.id}', ${index})">Remove</button>
+                                </div>
+                            `).join('') :
+                            '<p>No tracks in this playlist</p>'
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleTracks(playlistId) {
+            const playlist = currentPlaylists.find(p => (p._id || p.id) == playlistId);
+            if (playlist) {
+                playlist.showTracks = !playlist.showTracks;
+                renderPlaylists();
+            }
+        }
+
+        async function deletePlaylist(playlistId) {
+            if (!confirm('Are you sure you want to delete this playlist?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok || response.status === 204) {
+                    currentPlaylists = currentPlaylists.filter(p => (p._id || p.id) != playlistId);
+                    renderPlaylists();
+                    renderTracks();
+                    showMessage('Playlist deleted!');
+                } else {
+                    const errorText = await response.text();
+                    showMessage(`Failed to delete playlist: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeTrack(playlistId, trackIndex) {
+            if (!confirm('Remove this track from the playlist?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}/tracks/${trackIndex}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    const updatedPlaylist = await response.json();
+                    const index = currentPlaylists.findIndex(p => (p._id || p.id) == playlistId);
+                    if (index !== -1) {
+                        currentPlaylists[index] = updatedPlaylist;
+                        renderPlaylists();
+                    }
+                    showMessage('Track removed!');
+                } else {
+                    showMessage('Failed to remove track', 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPlaylists();
+        });
+
+        // Search on Enter
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchTracks();
+            }
+        });
+    </script>
+</body>
+</html>
