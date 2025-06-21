@@ -171,6 +171,51 @@ app.get('/api/playlists/:id', async (req, res) => {
   }
 });
 
+// Add track to playlist
+app.post('/api/playlists/:id/tracks', async (req, res) => {
+  try {
+    const playlistId = req.params.id;
+    const trackData = req.body;
+    
+    if (!trackData.name || !trackData.artist) {
+      return res.status(400).json({ error: 'Track name and artist are required' });
+    }
+
+    if (db) {
+      const collection = db.collection('playlists');
+      const playlist = await collection.findOne({ 
+        $or: [{ id: parseInt(playlistId) }, { _id: playlistId }] 
+      });
+      
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+
+      const updatedTracks = [...(playlist.tracks || []), trackData];
+      
+      await collection.updateOne(
+        { _id: playlist._id },
+        { $set: { tracks: updatedTracks } }
+      );
+      
+      const updatedPlaylist = await collection.findOne({ _id: playlist._id });
+      res.json(updatedPlaylist);
+    } else {
+      const playlist = playlists.find(p => p.id == playlistId);
+      if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not found' });
+      }
+      
+      playlist.tracks = playlist.tracks || [];
+      playlist.tracks.push(trackData);
+      res.json(playlist);
+    }
+  } catch (error) {
+    console.error('Add track error:', error);
+    res.status(500).json({ error: 'Failed to add track to playlist' });
+  }
+});
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
