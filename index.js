@@ -255,8 +255,6 @@ app.delete('/api/playlists/:id/tracks/:trackIndex', async (req, res) => {
       let playlist;
       
       try {
-        const { ObjectId } = require('mongodb');
-        
         // Always try ObjectId conversion first for 24-char hex strings
         if (playlistId.match(/^[0-9a-fA-F]{24}$/)) {
           playlist = await collection.findOne({ _id: new ObjectId(playlistId) });
@@ -336,8 +334,6 @@ app.post('/api/playlists/:id/tracks', async (req, res) => {
       console.log('Looking for playlist with ID:', playlistId);
       
       try {
-        const { ObjectId } = require('mongodb');
-        
         // Always try ObjectId conversion first for 24-char hex strings
         if (playlistId.match(/^[0-9a-fA-F]{24}$/)) {
           playlist = await collection.findOne({ _id: new ObjectId(playlistId) });
