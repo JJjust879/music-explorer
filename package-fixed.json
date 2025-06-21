@@ -1,0 +1,18 @@
+{
+  "name": "music-explorer-api",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "mongodb": "^6.17.0",
+    "axios": "^1.10.0"
+  }
+}
